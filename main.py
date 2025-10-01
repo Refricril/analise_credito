@@ -97,6 +97,7 @@ COLUMN_MAPPING = {
     'id_cliente': 'cod_cliente',
     'nome_cliente': 'cliente',
     'doc_cliente': 'documento_cliente',  # CPF/CNPJ do cliente
+    'uf_cliente': 'uf_cliente',  # UF do cliente
     'valor_devido': 'vlr_total_vencidos',
     'total_compras': 'vlr_totalcompras',
     'documento': 'documento',  # Column name from final SELECT
