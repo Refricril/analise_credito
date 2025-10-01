@@ -416,7 +416,10 @@ def main():
         )
     elif not df_a_grouped.empty:
         df_comparativo = df_a_grouped.copy()
-        for col in [f'{nome_col}_B', f'{doc_cliente_col}_B', f'{uf_col}_B', f'{devido_col}_B', f'{compras_col}_B']:
+        # Para colunas de texto, usar string vazia; para valores numéricos, usar 0
+        for col in [f'{nome_col}_B', f'{doc_cliente_col}_B', f'{uf_col}_B']:
+            df_comparativo[col] = ''
+        for col in [f'{devido_col}_B', f'{compras_col}_B']:
             df_comparativo[col] = 0
     elif not df_b_grouped.empty:
         df_comparativo = df_b_grouped.copy()
@@ -427,16 +430,19 @@ def main():
             devido_col: f'{devido_col}_B',
             compras_col: f'{compras_col}_B'
         })
-        for col in [f'{nome_col}_A', f'{doc_cliente_col}_A', f'{uf_col}_A', f'{devido_col}_A', f'{compras_col}_A']:
+        # Para colunas de texto, usar string vazia; para valores numéricos, usar 0
+        for col in [f'{nome_col}_A', f'{doc_cliente_col}_A', f'{uf_col}_A']:
+            df_comparativo[col] = ''
+        for col in [f'{devido_col}_A', f'{compras_col}_A']:
             df_comparativo[col] = 0
     else:
         df_comparativo = pd.DataFrame()
     
     if not df_comparativo.empty:
-        # Limpeza dos dados
-        df_comparativo[nome_col] = df_comparativo.get(f'{nome_col}_A', '').fillna('').astype(str) + df_comparativo.get(f'{nome_col}_B', '').fillna('').astype(str)
-        df_comparativo[doc_cliente_col] = df_comparativo.get(f'{doc_cliente_col}_A', '').fillna('').astype(str) + df_comparativo.get(f'{doc_cliente_col}_B', '').fillna('').astype(str)
-        df_comparativo[uf_col] = df_comparativo.get(f'{uf_col}_A', '').fillna('').astype(str) + df_comparativo.get(f'{uf_col}_B', '').fillna('').astype(str)
+        # Limpeza dos dados - usar coalesce ao invés de concatenação
+        df_comparativo[nome_col] = df_comparativo[f'{nome_col}_A'].fillna(df_comparativo[f'{nome_col}_B'])
+        df_comparativo[doc_cliente_col] = df_comparativo[f'{doc_cliente_col}_A'].fillna(df_comparativo[f'{doc_cliente_col}_B'])
+        df_comparativo[uf_col] = df_comparativo[f'{uf_col}_A'].fillna(df_comparativo[f'{uf_col}_B'])
         
         # Garantir que as colunas existam
         for col in [f'{devido_col}_A', f'{devido_col}_B', f'{compras_col}_A', f'{compras_col}_B']:
@@ -516,27 +522,14 @@ def main():
                     'Diferença', 'Variação %'
                 ]
                 
-                # Configuração de colunas para formatação adequada
-                column_config = {
-                    f'Dívida ({date_a.strftime("%d/%m/%Y")})': st.column_config.NumberColumn(
-                        f'Dívida ({date_a.strftime("%d/%m/%Y")})',
-                        format="R$ %.2f"
-                    ),
-                    f'Dívida ({date_b.strftime("%d/%m/%Y")})': st.column_config.NumberColumn(
-                        f'Dívida ({date_b.strftime("%d/%m/%Y")})',
-                        format="R$ %.2f"
-                    ),
-                    'Diferença': st.column_config.NumberColumn(
-                        'Diferença',
-                        format="R$ %.2f"
-                    ),
-                    'Variação %': st.column_config.NumberColumn(
-                        'Variação %',
-                        format="%.1f%%"
-                    )
-                }
+                # Aplicar formatação monetária brasileira
+                df_display_formatted = df_display.copy()
+                df_display_formatted[f'Dívida ({date_a.strftime("%d/%m/%Y")})'] = df_display_formatted[f'Dívida ({date_a.strftime("%d/%m/%Y")})'].apply(format_currency)
+                df_display_formatted[f'Dívida ({date_b.strftime("%d/%m/%Y")})'] = df_display_formatted[f'Dívida ({date_b.strftime("%d/%m/%Y")})'].apply(format_currency)
+                df_display_formatted['Diferença'] = df_display_formatted['Diferença'].apply(format_currency)
+                df_display_formatted['Variação %'] = df_display_formatted['Variação %'].apply(lambda x: f"{x:.1f}%")
                 
-                st.dataframe(df_display, width='stretch', column_config=column_config)
+                st.dataframe(df_display_formatted, width='stretch')
             else:
                 st.info("Nenhuma variação encontrada entre os períodos.")
         else:
@@ -557,15 +550,10 @@ def main():
                 if not df_a.empty:
                     top_a = df_a.nlargest(10, compras_col)[[nome_col, compras_col]].copy()
                     top_a.columns = ['Cliente', 'Total Compras']
+                    # Formatação brasileira
+                    top_a['Total Compras'] = top_a['Total Compras'].apply(format_currency)
                     
-                    column_config_a = {
-                        'Total Compras': st.column_config.NumberColumn(
-                            'Total Compras',
-                            format="R$ %.2f"
-                        )
-                    }
-                    
-                    st.dataframe(top_a, width='stretch', column_config=column_config_a)
+                    st.dataframe(top_a, width='stretch')
                 else:
                     st.info("Sem dados para este período")
             
@@ -574,15 +562,10 @@ def main():
                 if not df_b.empty:
                     top_b = df_b.nlargest(10, compras_col)[[nome_col, compras_col]].copy()
                     top_b.columns = ['Cliente', 'Total Compras']
+                    # Formatação brasileira
+                    top_b['Total Compras'] = top_b['Total Compras'].apply(format_currency)
                     
-                    column_config_b = {
-                        'Total Compras': st.column_config.NumberColumn(
-                            'Total Compras',
-                            format="R$ %.2f"
-                        )
-                    }
-                    
-                    st.dataframe(top_b, width='stretch', column_config=column_config_b)
+                    st.dataframe(top_b, width='stretch')
                 else:
                     st.info("Sem dados para este período")
         else:
@@ -597,22 +580,12 @@ def main():
             if not df_a.empty:
                 st.markdown(f"**Total de registros:** {len(df_a):,}")
                 
-                # Preparar dados para exibição (sem formatação para manter ordenação)
+                # Preparar dados para exibição com formatação brasileira
                 df_a_display = df_a.copy()
+                df_a_display[devido_col] = df_a_display[devido_col].apply(format_currency)
+                df_a_display[compras_col] = df_a_display[compras_col].apply(format_currency)
                 
-                # Configuração de colunas para valores monetários
-                column_config_period_a = {
-                    devido_col: st.column_config.NumberColumn(
-                        devido_col,
-                        format="R$ %.2f"
-                    ),
-                    compras_col: st.column_config.NumberColumn(
-                        compras_col,
-                        format="R$ %.2f"
-                    )
-                }
-                
-                st.dataframe(df_a_display, width='stretch', column_config=column_config_period_a)
+                st.dataframe(df_a_display, width='stretch')
             else:
                 st.info("Nenhum dado disponível para este período.")
         
@@ -620,22 +593,12 @@ def main():
             if not df_b.empty:
                 st.markdown(f"**Total de registros:** {len(df_b):,}")
                 
-                # Preparar dados para exibição (sem formatação para manter ordenação)
+                # Preparar dados para exibição com formatação brasileira
                 df_b_display = df_b.copy()
+                df_b_display[devido_col] = df_b_display[devido_col].apply(format_currency)
+                df_b_display[compras_col] = df_b_display[compras_col].apply(format_currency)
                 
-                # Configuração de colunas para valores monetários
-                column_config_period_b = {
-                    devido_col: st.column_config.NumberColumn(
-                        devido_col,
-                        format="R$ %.2f"
-                    ),
-                    compras_col: st.column_config.NumberColumn(
-                        compras_col,
-                        format="R$ %.2f"
-                    )
-                }
-                
-                st.dataframe(df_b_display, width='stretch', column_config=column_config_period_b)
+                st.dataframe(df_b_display, width='stretch')
             else:
                 st.info("Nenhum dado disponível para este período.")
     
