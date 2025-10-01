@@ -12,3 +12,7 @@ pytz==2023.3
 python-dateutil==2.8.2
 streamlit==1.28.1
 plotly==5.17.0
+folium==0.15.0
+streamlit-folium==0.15.0
+geojson==3.1.0
+geopandas==0.14.0
