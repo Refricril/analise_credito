@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Financeiro - Refricril</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .chart-container { background-color: #1f2937; border-radius: 0.75rem; padding: 1rem; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <!-- Seção de Login (Visível por padrão) -->
+    <section id="login-section" class="flex items-center justify-center min-h-screen">
+        <div class="w-full max-w-md p-8 space-y-6 bg-gray-800 rounded-2xl shadow-lg">
+            <img src="/static/refricril.png" alt="Logo Refricril" class="w-48 mx-auto">
+            <h2 class="text-2xl font-bold text-center text-white">Acesso ao Dashboard</h2>
+            <form id="login-form" class="space-y-6">
+                <div>
+                    <label for="username" class="text-sm font-medium text-gray-400">Usuário</label>
+                    <input id="username" name="username" type="text" required class="w-full px-3 py-2 mt-1 text-white bg-gray-700 border border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="password" class="text-sm font-medium text-gray-400">Senha</label>
+                    <input id="password" name="password" type="password" required class="w-full px-3 py-2 mt-1 text-white bg-gray-700 border border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <button type="submit" class="w-full px-4 py-2 font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-300">Entrar</button>
+            </form>
+            <p id="login-error" class="text-sm text-center text-red-400"></p>
+        </div>
+    </section>
+
+    <!-- Seção do Dashboard (Oculta por padrão) -->
+    <section id="dashboard-section" class="hidden">
+        <div class="flex h-screen bg-gray-900">
+            <!-- Sidebar -->
+            <aside class="w-64 flex-shrink-0 p-6 bg-gray-800 border-r border-gray-700 flex flex-col">
+                <div>
+                    <img src="/static/refricril.png" alt="Logo Refricril" class="w-32 mb-8">
+                    <h3 class="text-lg font-semibold text-white mb-4">Filtros</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="date_a" class="text-sm font-medium text-gray-400">Data de Posição A</label>
+                            <input type="date" id="date_a" class="w-full px-3 py-2 mt-1 text-white bg-gray-700 border border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="date_b" class="text-sm font-medium text-gray-400">Data de Posição B</label>
+                            <input type="date" id="date_b" class="w-full px-3 py-2 mt-1 text-white bg-gray-700 border border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <button id="analyze-btn" class="w-full px-4 py-2 font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors duration-300">Gerar Análise</button>
+                        <div class="pt-4 border-t border-gray-700">
+                            <h4 class="text-sm font-semibold text-white mb-2">Exportar Dados</h4>
+                            <button id="export-xlsx-btn" disabled class="w-full px-4 py-2 mb-2 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors duration-300">Exportar para XLSX</button>
+                            <button id="export-csv-btn" disabled class="w-full px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors duration-300">Exportar para CSV</button>
+                        </div>
+                    </div>
+                </div>
+                <button id="logout-btn" class="w-full mt-auto px-4 py-2 font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors duration-300">Logout</button>
+            </aside>
+
+            <!-- Conteúdo Principal -->
+            <main class="flex-1 p-8 overflow-y-auto">
+                <div id="welcome-message" class="text-center">
+                    <h1 class="text-3xl font-bold text-white">Dashboard de Posição Retroativa</h1>
+                    <p class="mt-2 text-gray-400">Selecione as datas e clique em "Gerar Análise" para começar.</p>
+                </div>
+                <div id="loading-indicator" class="hidden text-center mt-10">
+                    <p>Buscando e processando dados... Por favor, aguarde.</p>
+                </div>
+                <div id="charts-grid" class="hidden grid grid-cols-1 gap-8 mt-8">
+                    <div id="chart-variacao-divida" class="chart-container"></div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div id="chart-compradores-a" class="chart-container"></div>
+                        <div id="chart-compradores-b" class="chart-container"></div>
+                    </div>
+                    <!-- Tabelas de Detalhamento -->
+                    <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div class="bg-gray-800 rounded-lg p-6">
+                            <h3 class="text-xl font-semibold mb-4">Detalhamento Período A</h3>
+                            <div class="overflow-x-auto">
+                                <table id="detalhes-a" class="min-w-full divide-y divide-gray-700">
+                                    <thead>
+                                        <tr>
+                                            <th class="px-4 py-2 text-left">Cliente</th>
+                                            <th class="px-4 py-2 text-left">Documento</th>
+                                            <th class="px-4 py-2 text-left">Data</th>
+                                            <th class="px-4 py-2 text-right">Valor</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-700"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="bg-gray-800 rounded-lg p-6">
+                            <h3 class="text-xl font-semibold mb-4">Detalhamento Período B</h3>
+                            <div class="overflow-x-auto">
+                                <table id="detalhes-b" class="min-w-full divide-y divide-gray-700">
+                                    <thead>
+                                        <tr>
+                                            <th class="px-4 py-2 text-left">Cliente</th>
+                                            <th class="px-4 py-2 text-left">Documento</th>
+                                            <th class="px-4 py-2 text-left">Data</th>
+                                            <th class="px-4 py-2 text-right">Valor</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-700"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </section>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const loginSection = document.getElementById('login-section');
+            const dashboardSection = document.getElementById('dashboard-section');
+            const loginForm = document.getElementById('login-form');
+            const loginError = document.getElementById('login-error');
+            const analyzeBtn = document.getElementById('analyze-btn');
+            const logoutBtn = document.getElementById('logout-btn');
+            const exportXlsxBtn = document.getElementById('export-xlsx-btn');
+            const exportCsvBtn = document.getElementById('export-csv-btn');
+            
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const welcomeMessage = document.getElementById('welcome-message');
+            const chartsGrid = document.getElementById('charts-grid');
+
+            let charts = {};
+
+            const formatDate = (date) => {
+                const d = new Date(date);
+                let month = '' + (d.getMonth() + 1);
+                let day = '' + d.getDate();
+                const year = d.getFullYear();
+
+                if (month.length < 2) month = '0' + month;
+                if (day.length < 2) day = '0' + day;
+
+                return [year, month, day].join('-');
+            }
+
+            const today = new Date();
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(today.getDate() - 30);
+            document.getElementById('date_a').value = formatDate(today);
+            document.getElementById('date_b').value = formatDate(thirtyDaysAgo);
+
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                loginError.textContent = '';
+                const username = loginForm.username.value;
+                const password = loginForm.password.value;
+
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    loginSection.classList.add('hidden');
+                    dashboardSection.classList.remove('hidden');
+                } else {
+                    loginError.textContent = data.message;
+                }
+            });
+            
+            logoutBtn.addEventListener('click', async () => {
+                await fetch('/api/logout');
+                dashboardSection.classList.add('hidden');
+                loginSection.classList.remove('hidden');
+                loginForm.reset();
+            });
+
+            // --- Lógica do Dashboard ---
+            const buyersChartOptions = (title, categories, seriesData, color) => ({
+                series: [{ name: 'Valor (R$)', data: seriesData }],
+                chart: { type: 'bar', height: 350, toolbar: { show: true } },
+                plotOptions: { bar: { borderRadius: 4, horizontal: true } },
+                dataLabels: { enabled: false },
+                xaxis: { categories: categories, labels: { style: { colors: '#9CA3AF' } } },
+                yaxis: { labels: { style: { colors: '#9CA3AF' } } },
+                title: { text: title, align: 'left', style: { color: '#E5E7EB', fontSize: '16px' } },
+                grid: { borderColor: '#374151' },
+                colors: [color],
+                tooltip: { theme: 'dark', y: { formatter: (val) => `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` } }
+            });
+
+            const debtVariationChartOptions = (title, categories, seriesData) => ({
+                series: [{ name: 'Variação (R$)', data: seriesData }],
+                chart: { type: 'bar', height: 400, toolbar: { show: true } },
+                plotOptions: {
+                    bar: {
+                        borderRadius: 4, horizontal: true,
+                        colors: {
+                            ranges: [{
+                                from: -999999999, to: -0.01, color: '#22C55E' // Verde para redução de dívida
+                            }, {
+                                from: 0.01, to: 999999999, color: '#EF4444' // Vermelho para aumento de dívida
+                            }]
+                        }
+                    }
+                },
+                dataLabels: { enabled: false },
+                xaxis: { categories: categories, labels: { style: { colors: '#9CA3AF' } } },
+                yaxis: { labels: { style: { colors: '#9CA3AF' } } },
+                title: { text: title, align: 'left', style: { color: '#E5E7EB', fontSize: '16px' } },
+                grid: { borderColor: '#374151' },
+                tooltip: { theme: 'dark', y: { formatter: (val) => `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` } }
+            });
+
+            function renderChart(containerId, options) {
+                if (charts[containerId]) {
+                    charts[containerId].updateOptions(options);
+                } else {
+                    const chart = new ApexCharts(document.querySelector(`#${containerId}`), options);
+                    chart.render();
+                    charts[containerId] = chart;
+                }
+            }
+            
+            analyzeBtn.addEventListener('click', async () => {
+                const dateA = document.getElementById('date_a').value;
+                const dateB = document.getElementById('date_b').value;
+
+                if (!dateA || !dateB) {
+                    alert('Por favor, selecione as duas datas de posição.');
+                    return;
+                }
+
+                welcomeMessage.classList.add('hidden');
+                chartsGrid.classList.add('hidden');
+                loadingIndicator.classList.remove('hidden');
+                exportXlsxBtn.disabled = true;
+                exportCsvBtn.disabled = true;
+
+                const response = await fetch('/api/get-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ date_a: dateA, date_b: dateB })
+                });
+                
+                loadingIndicator.classList.add('hidden');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        renderChart('chart-variacao-divida', debtVariationChartOptions(
+                            `Maiores Variações de Dívida (${data.date_a_display} vs ${data.date_b_display})`,
+                            data.variacao_divida.map(item => item.cliente),
+                            data.variacao_divida.map(item => item.Diferenca_Divida)
+                        ));
+
+                        renderChart('chart-compradores-a', buyersChartOptions(
+                            `Top 10 Compradores (${data.date_a_display})`,
+                            data.compradores_a.map(item => item.cliente),
+                            data.compradores_a.map(item => item.vlr_totalcompras),
+                            '#10B981'
+                        ));
+                        renderChart('chart-compradores-b', buyersChartOptions(
+                            `Top 10 Compradores (${data.date_b_display})`,
+                            data.compradores_b.map(item => item.cliente),
+                            data.compradores_b.map(item => item.vlr_totalcompras),
+                            '#F59E0B'
+                        ));
+                        
+                        // Preenche as tabelas de detalhamento
+                        const detalhesA = document.querySelector('#detalhes-a tbody');
+                        const detalhesB = document.querySelector('#detalhes-b tbody');
+                        
+                        detalhesA.innerHTML = data.detalhes_a
+                            .map(item => `
+                                <tr>
+                                    <td class="px-4 py-2">${item.cliente}</td>
+                                    <td class="px-4 py-2">${item.DOCUMENTO}</td>
+                                    <td class="px-4 py-2">${item.data_emissao}</td>
+                                    <td class="px-4 py-2 text-right">${item.vlr_total_vencidos_fmt}</td>
+                                </tr>
+                            `).join('');
+                            
+                        detalhesB.innerHTML = data.detalhes_b
+                            .map(item => `
+                                <tr>
+                                    <td class="px-4 py-2">${item.cliente}</td>
+                                    <td class="px-4 py-2">${item.DOCUMENTO}</td>
+                                    <td class="px-4 py-2">${item.data_emissao}</td>
+                                    <td class="px-4 py-2 text-right">${item.vlr_total_vencidos_fmt}</td>
+                                </tr>
+                            `).join('');
+
+                        chartsGrid.classList.remove('hidden');
+                        exportXlsxBtn.disabled = false;
+                        exportCsvBtn.disabled = false;
+                    } else {
+                        alert(data.message);
+                        welcomeMessage.classList.remove('hidden');
+                    }
+                } else {
+                     alert('Erro na comunicação com o servidor.');
+                     welcomeMessage.classList.remove('hidden');
+                }
+            });
+            
+            async function triggerExport(format) {
+                const dateA = document.getElementById('date_a').value;
+                const dateB = document.getElementById('date_b').value;
+                
+                const btn = document.getElementById(`export-${format}-btn`);
+                const originalText = btn.innerHTML;
+                btn.innerHTML = 'Exportando...';
+                btn.disabled = true;
+
+                const response = await fetch('/api/export', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ date_a: dateA, date_b: dateB, format: format })
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const header = response.headers.get('Content-Disposition');
+                    const parts = header.split(';');
+                    let filename = '';
+                    parts.forEach(part => {
+                        if (part.trim().startsWith('filename=')) {
+                            filename = part.split('=')[1].trim().replace(/"/g, '');
+                        }
+                    });
+
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = filename || `relatorio.${format}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    a.remove();
+                } else {
+                    alert("Falha ao gerar o arquivo para exportação.");
+                }
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+            
+            exportXlsxBtn.addEventListener('click', () => triggerExport('xlsx'));
+            exportCsvBtn.addEventListener('click', () => triggerExport('csv'));
+        });
+    </script>
+</body>
+</html>
